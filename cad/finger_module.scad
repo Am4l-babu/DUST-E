@@ -20,7 +20,7 @@
 //  of stripping its gears on a switch that did not move.
 // =============================================================================
 
-include <binchad_params.scad>
+include <duste_params.scad>
 
 part = "all";
 

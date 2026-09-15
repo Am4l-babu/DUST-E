@@ -5,9 +5,9 @@ camera. Each one guards a specific way a social robot embarrasses itself.
 
 import pytest
 
-from binbrain.config import load_config
-from binbrain.events import EventType
-from binbrain.sim.scenario import (
+from dustebrain.config import load_config
+from dustebrain.events import EventType
+from dustebrain.sim.scenario import (
     flicker,
     person_with_cup,
     returning,
@@ -15,7 +15,7 @@ from binbrain.sim.scenario import (
     two_people_swap,
     walk_in,
 )
-from binbrain.world.model import Motion, WorldModel, Zone, classify_zone
+from dustebrain.world.model import Motion, WorldModel, Zone, classify_zone
 
 from .conftest import run_scenario, types_of
 
@@ -69,7 +69,7 @@ def test_appearance_keeps_identities_when_people_swap_sides(cfg):
 def test_without_appearance_strangers_are_not_merged(cfg):
     # Same scenario, signatures stripped: nothing can prove they are the same
     # people after an 8-second absence, so they must be new.
-    from binbrain.vision.tracker import Tracker
+    from dustebrain.vision.tracker import Tracker
 
     tracker, world, events = Tracker(cfg), WorldModel(cfg), []
     for frame in two_people_swap().frames(cfg):
@@ -86,7 +86,7 @@ def test_robot_motion_is_not_mistaken_for_an_approaching_person(cfg):
 
 
 def test_the_same_robot_motion_without_ego_compensation_would_be_wrong(cfg):
-    from binbrain.vision.tracker import Tracker
+    from dustebrain.vision.tracker import Tracker
 
     tracker, world, events = Tracker(cfg), WorldModel(cfg), []
     for frame in robot_drives_to_statue().frames(cfg):
@@ -121,7 +121,7 @@ def test_zone_bands_match_the_brief(cfg):
 
 
 def test_camera_silence_is_offline_not_empty(cfg):
-    from binbrain.vision.tracker import Tracker
+    from dustebrain.vision.tracker import Tracker
 
     tracker, world = Tracker(cfg), WorldModel(cfg)
     frames = list(walk_in().frames(cfg))[:20]

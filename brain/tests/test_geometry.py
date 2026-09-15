@@ -1,14 +1,14 @@
 import pytest
 
-from binbrain.config import load_config
-from binbrain.vision.geometry import (
+from dustebrain.config import load_config
+from dustebrain.vision.geometry import (
     bearing_deg,
     box_for_standing_object,
     cx_for_bearing,
     estimate_range,
     feet_visible_beyond_m,
 )
-from binbrain.vision.types import BBox
+from dustebrain.vision.types import BBox
 
 
 @pytest.mark.parametrize("b", [-30.0, -5.0, 0.0, 12.0, 34.0])

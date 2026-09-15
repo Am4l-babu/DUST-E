@@ -1,8 +1,8 @@
-from binbrain.prng import Prng
+from dustebrain.prng import Prng
 
 
 def test_xorshift32_matches_the_firmware_algorithm():
-    # Worked by hand from firmware/TrashBotWeb/src/core/prng.h for seed 1:
+    # Worked by hand from firmware/DustEWeb/src/core/prng.h for seed 1:
     #   x ^= x << 13  -> 8193
     #   x ^= x >> 17  -> 8193
     #   x ^= x << 5   -> 270369

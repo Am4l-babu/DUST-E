@@ -21,7 +21,7 @@
 //      aux strip (ladder): AI ANGRY MOOD STOP NORMAL MUTE LIGHT DARK
 // =============================================================================
 
-include <binchad_params.scad>
+include <duste_params.scad>
 
 part = "all";
 

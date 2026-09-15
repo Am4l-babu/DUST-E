@@ -8,7 +8,7 @@ Open <https://openscad.org/> — or render from the command line:
 openscad -o lid_frame.stl -D 'part="lid_frame"' cad/lid_mechanism.scad
 ```
 
-`cad/binchad_params.scad` holds every shared dimension. Change a number there
+`cad/duste_params.scad` holds every shared dimension. Change a number there
 and every part that references it follows. That is the entire point: the lid
 width appears in the hinge, the servo mount, the linkage length and the body
 cut-out, and they must not be allowed to disagree.
@@ -159,7 +159,7 @@ filament. The `lid_frame` alone is ~9 hours; start it first.
 
 ### Tolerances
 
-`binchad_params.scad` defines three fits, all measured on a stock
+`duste_params.scad` defines three fits, all measured on a stock
 Ender-class printer:
 
 ```

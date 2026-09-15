@@ -1,8 +1,8 @@
 # PINOUT
 
 Exact GPIO assignments for both boards. These tables are the authority; they
-match `firmware/BinChad/src/config/pins.h` and
-`firmware/BinRemote/src/config/pins.h` line for line. If you change a pin,
+match `firmware/DustE/src/config/pins.h` and
+`firmware/DustERemote/src/config/pins.h` line for line. If you change a pin,
 change it in the header **and** here.
 
 ---
@@ -39,7 +39,7 @@ Everything assigned below comes from the always-safe set:
 | 10 | IN pull-up | `LIMIT_CLOSED` | Lid closed microswitch → GND | Active LOW. Wire to the **NC-to-GND** contact so a broken wire reads "not closed" and faults safe. |
 | 11 | IN pull-up | `LIMIT_OPEN` | Lid open microswitch → GND | Active LOW. |
 | 12 | IN pull-up | `SWITCH_NORMAL` | NORMAL MODE latching switch → GND | Active LOW = ON. |
-| 13 | IN pull-up | `HIDDEN_TRIGGER` | Concealed demo-rescue button → GND | Active LOW. See `HACKATHON_DEMO.md` §5. |
+| 13 | IN pull-up | `HIDDEN_TRIGGER` | Concealed demo-rescue button → GND | Active LOW. See `DEMO.md` §5. |
 | 14 | IN pull-up | `IR_THROAT` | IR break-beam receiver / proximity module OUT | Active LOW = blocked. Optional (`USE_IR_THROAT`). |
 | 15 | OUT (PWM) | `SERVO_FINGER_DOOR` | SG90 signal | The hatch. |
 | 16 | OUT | `LED_DATA` | WS2812B DIN | Through 330 Ω, as close to the first pixel as possible. |

@@ -6,7 +6,7 @@
 #  dataclasses have none, so a value cannot silently differ between the two.
 #
 #  Override on the board without editing this file:
-#      python -m binbrain.apps.vision_node --config /etc/binbrain/local.yaml
+#      python -m dustebrain.apps.vision_node --config /etc/dustebrain/local.yaml
 #  An override file only needs the keys it changes. Unknown keys are an error,
 #  so a typo cannot quietly leave a default in place.
 #

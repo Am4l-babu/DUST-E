@@ -1,4 +1,4 @@
-# BIN-CHAD
+# DUST-E
 
 ### The Uncooperative Waste Management System
 
@@ -23,10 +23,10 @@ unreasonable amount of engineering.
 
 | Path | Contents |
 |---|---|
-| `firmware/BinChad/` | Main controller firmware (ESP32-S3). Arduino sketch, modular `src/` tree. |
-| `firmware/BinRemote/` | Remote firmware (ESP32-C3). |
-| `firmware/TrashBotWeb/` | The web remote: a second, simpler machine (ESP32 + L298N + two DC motors) that serves its own browser dashboard. The phone is its remote, its speaker and its eyes. See its [README](firmware/TrashBotWeb/README.md) and [PROTOCOL](firmware/TrashBotWeb/PROTOCOL.md). |
-| `firmware/TrashBotCam/` | Optional ESP32-CAM companion for the web remote: serves snapshots the phone runs its detector on. [README](firmware/TrashBotCam/README.md). |
+| `firmware/DustE/` | Main controller firmware (ESP32-S3). Arduino sketch, modular `src/` tree. |
+| `firmware/DustERemote/` | Remote firmware (ESP32-C3). |
+| `firmware/DustEWeb/` | The web remote: a second, simpler machine (ESP32 + L298N + two DC motors) that serves its own browser dashboard. The phone is its remote, its speaker and its eyes. See its [README](firmware/DustEWeb/README.md) and [PROTOCOL](firmware/DustEWeb/PROTOCOL.md). |
+| `firmware/DustECam/` | Optional ESP32-CAM companion for the web remote: serves snapshots the phone runs its detector on. [README](firmware/DustECam/README.md). |
 | `brain/` | **In progress:** the autonomous-companion brain for the Arduino UNO Q (Python). Phase 1: camera, detection, tracking, world model. [README](brain/README.md). |
 | `docs/COMPANION_ARCHITECTURE.md` | Analysis and phased plan for evolving the bin into an autonomous companion: reuse, conflicts, missing hardware, protocol, safety. |
 | `audio/` | The voice clips. The web remote's filesystem image ships them; more can be uploaded from its AUDIO tab. |
@@ -42,7 +42,7 @@ unreasonable amount of engineering.
 | `REMOTE_PROTOCOL.md` | ESP-NOW packet format and the mistranslation engine. |
 | `TEST_PLAN.md` | Endurance, safety and reliability test checklist. |
 | `TROUBLESHOOTING.md` | The eight failures you are actually going to hit. |
-| `HACKATHON_DEMO.md` | The two-minute demo script and the failure-proofing. |
+| `DEMO.md` | The two-minute demo script and the failure-proofing. |
 
 ---
 
@@ -113,7 +113,7 @@ what turns a mechanism into a joke.
 
 ## The second machine: the web remote
 
-`firmware/TrashBotWeb/` is a different build of the same idea. Instead of an
+`firmware/DustEWeb/` is a different build of the same idea. Instead of an
 oversized labelled remote there is no remote at all — the ESP32 serves a
 dashboard and your phone becomes the thing it disobeys.
 
@@ -147,7 +147,7 @@ sensor that is not fitted.
 Built and verified with PlatformIO — `pio run` in that folder, then
 `pio run -t uploadfs` for the dashboard. Full details, including the six
 places where it deliberately departs from a literal reading of the brief, are
-in [firmware/TrashBotWeb/README.md](firmware/TrashBotWeb/README.md).
+in [firmware/DustEWeb/README.md](firmware/DustEWeb/README.md).
 
 ---
 
@@ -158,7 +158,7 @@ mattered. None of it matters.
 
 **The machine is the attraction.** No app, no cloud, no router, no dashboard.
 ESP-NOW is peer-to-peer; unplug the venue's Wi-Fi and nothing changes.
-(`firmware/TrashBotWeb/` deliberately trades this away for a browser
+(`firmware/DustEWeb/` deliberately trades this away for a browser
 dashboard — but it carries its own access point, so it still needs nothing
 from the venue.)
 
@@ -195,15 +195,15 @@ openscad -o lid_frame.stl -D 'part="lid_frame"' cad/lid_mechanism.scad
 # 2. Wire it (PINOUT.md, then WIRING.md)
 
 # 3. Prepare the sounds
-python tools/make_wavs.py            # generates placeholder clips into firmware/BinChad/data/
+python tools/make_wavs.py            # generates placeholder clips into firmware/DustE/data/
 
 # 4. Flash the bin
-#    Arduino IDE -> firmware/BinChad/BinChad.ino
+#    Arduino IDE -> firmware/DustE/DustE.ino
 #    Board: ESP32S3 Dev Module | USB CDC On Boot: Enabled
 #    Then: Tools -> ESP32 Sketch Data Upload  (writes data/ to LittleFS)
 
 # 5. Flash the remote
-#    Arduino IDE -> firmware/BinRemote/BinRemote.ino
+#    Arduino IDE -> firmware/DustERemote/DustERemote.ino
 #    Board: ESP32C3 Dev Module | USB CDC On Boot: Enabled
 
 # 6. Calibrate (BUILD_GUIDE.md §7) - servo endpoints, then ToF thresholds
@@ -239,9 +239,9 @@ The base machine must work with the camera physically removed. That is not a
 style preference — it is the difference between a demo that survives a badly
 lit conference hall and one that does not.
 
-**Not verified here:** the BIN-CHAD and BinRemote firmware has not been
+**Not verified here:** the DUST-E and DustERemote firmware has not been
 compiled and the OpenSCAD has not been rendered in this environment — no
-toolchain was available for them. (`firmware/TrashBotWeb/` is the exception:
+toolchain was available for them. (`firmware/DustEWeb/` is the exception:
 it builds clean with no warnings under PlatformIO, and its LittleFS image
 packs. It has not been run on hardware.) Treat the
 first build as a bring-up, and expect to fix a missing include or a tight
@@ -252,10 +252,12 @@ reviewed by hand.
 
 ## Naming
 
-The bin answers to **BIN-CHAD**. It has also been called TrashGPT, BIN.exe,
-RejectBin, Garbage Intelligence, and The Refuser. Rename it in
+The robot is **DUST-E**, and so is every machine in this repository: the bin
+(`firmware/DustE`), its remote (`firmware/DustERemote`), the web rover
+(`firmware/DustEWeb`), its camera (`firmware/DustECam`) and the brain
+(`brain/dustebrain`). The name is drawn in
 `display.cpp::bootScreen()` and on the remote's faceplate label.
 
-Judges are expected to ask *"why does this exist?"*
+People are expected to ask *"why does this exist?"*
 
 The answer is: because we could build it.

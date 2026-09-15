@@ -1,6 +1,6 @@
 import pytest
 
-from binbrain.config import ConfigError, deep_merge, load_config
+from dustebrain.config import ConfigError, deep_merge, load_config
 
 
 def test_defaults_load_and_validate(cfg):

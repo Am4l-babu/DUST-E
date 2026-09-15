@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-make_wavs.py - generate placeholder sound effects for BIN-CHAD.
+make_wavs.py - generate placeholder sound effects for DUST-E.
 
     python tools/make_wavs.py
 
-Writes 16-bit mono 22050 Hz WAV files into firmware/BinChad/data/, which is
+Writes 16-bit mono 22050 Hz WAV files into firmware/DustE/data/, which is
 the folder the ESP32 LittleFS uploader flashes to the board.
 
 These are synthesised beeps and blips, not voice lines. They exist so that the
@@ -23,7 +23,7 @@ import wave
 
 RATE = 22050
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   "firmware", "BinChad", "data")
+                   "firmware", "DustE", "data")
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-verify_project.py - static consistency checks for the BIN-CHAD repo.
+verify_project.py - static consistency checks for the DUST-E repo.
 
     python tools/verify_project.py
 
@@ -42,9 +42,9 @@ def read(*parts):
 
 # ---------------------------------------------------------------------------
 def check_pin_maps():
-    for label, path in (("bin", "firmware/BinChad/src/config/pins.h"),
-                        ("remote", "firmware/BinRemote/src/config/pins.h"),
-                        ("trashbot-web", "firmware/TrashBotWeb/src/config/pins.h")):
+    for label, path in (("bin", "firmware/DustE/src/config/pins.h"),
+                        ("remote", "firmware/DustERemote/src/config/pins.h"),
+                        ("duste-web", "firmware/DustEWeb/src/config/pins.h")):
         text = read(*path.split("/"))
         seen = {}
         for m in re.finditer(r"^#define\s+(PIN_\w+)\s+(\d+)", text, re.M):
@@ -66,29 +66,29 @@ def check_pin_maps():
     forbidden = {0: "strapping/BOOT", 3: "strapping", 19: "USB D-", 20: "USB D+",
                  43: "UART0 TX", 44: "UART0 RX", 45: "strapping", 46: "strapping"}
     forbidden.update({p: "SPI flash" for p in range(26, 33)})
-    text = read("firmware", "BinChad", "src", "config", "pins.h")
+    text = read("firmware", "DustE", "src", "config", "pins.h")
     for m in re.finditer(r"^#define\s+(PIN_\w+)\s+(\d+)", text, re.M):
         gpio = int(m.group(2))
         if gpio in forbidden:
             problem(f"bin pins.h: {m.group(1)} uses GPIO{gpio} "
                     f"({forbidden[gpio]}) - reserved")
 
-    # TrashBotWeb is a classic ESP32, which has a different set of traps:
+    # DustEWeb is a classic ESP32, which has a different set of traps:
     # 6-11 are the SPI flash, and 34-39 are input-only so they cannot drive
     # an L298N input.
     classic = {p: "SPI flash" for p in range(6, 12)}
     classic.update({p: "input-only, cannot drive an output" for p in range(34, 40)})
-    text = read("firmware", "TrashBotWeb", "src", "config", "pins.h")
+    text = read("firmware", "DustEWeb", "src", "config", "pins.h")
     for m in re.finditer(r"^#define\s+(PIN_\w+)\s+(\d+)", text, re.M):
         gpio = int(m.group(2))
         if gpio in classic:
-            problem(f"trashbot-web pins.h: {m.group(1)} uses GPIO{gpio} "
+            problem(f"duste-web pins.h: {m.group(1)} uses GPIO{gpio} "
                     f"({classic[gpio]}) - unusable")
 
 
 def check_protocol_copies():
-    a = read("firmware", "BinChad", "src", "remote", "protocol.h")
-    b = read("firmware", "BinRemote", "src", "config", "protocol.h")
+    a = read("firmware", "DustE", "src", "remote", "protocol.h")
+    b = read("firmware", "DustERemote", "src", "config", "protocol.h")
     if a != b:
         problem("protocol.h copies have DIVERGED - every packet will fail "
                 "its checksum. Copy one over the other.")
@@ -99,8 +99,8 @@ def check_protocol_copies():
 def check_method_definitions():
     """Every 'Type Class::method' declared in a .h should exist in its .cpp."""
     pairs = []
-    for base in ("firmware/BinChad/src", "firmware/BinRemote/src",
-                 "firmware/TrashBotWeb/src"):
+    for base in ("firmware/DustE/src", "firmware/DustERemote/src",
+                 "firmware/DustEWeb/src"):
         for dirpath, _, files in os.walk(os.path.join(ROOT, *base.split("/"))):
             for f in files:
                 if f.endswith(".h"):
@@ -160,20 +160,20 @@ def check_doc_links():
 
 
 def check_wavs():
-    data = os.path.join(ROOT, "firmware", "BinChad", "data")
+    data = os.path.join(ROOT, "firmware", "DustE", "data")
     if not os.path.isdir(data):
-        problem("firmware/BinChad/data/ missing - run tools/make_wavs.py")
+        problem("firmware/DustE/data/ missing - run tools/make_wavs.py")
         return
 
     # Names the firmware asks for, from audio.cpp's clip table.
-    audio = read("firmware", "BinChad", "src", "hardware", "audio.cpp")
+    audio = read("firmware", "DustE", "src", "hardware", "audio.cpp")
     wanted = re.findall(r'"(/\w+\.wav)"', audio)
     wanted = [w.lstrip("/") for w in wanted]
 
     present = sorted(f for f in os.listdir(data) if f.endswith(".wav"))
     for w in wanted:
         if w not in present:
-            problem(f"audio.cpp expects {w} but firmware/BinChad/data/ has no such file")
+            problem(f"audio.cpp expects {w} but firmware/DustE/data/ has no such file")
 
     longest = 0.0
     for f in present:
@@ -190,7 +190,7 @@ def check_wavs():
 
 
 def check_settings_sanity():
-    s = read("firmware", "BinChad", "src", "config", "settings.h")
+    s = read("firmware", "DustE", "src", "config", "settings.h")
 
     def val(name):
         m = re.search(rf"\b{name}\s*=\s*(\d+)", s)

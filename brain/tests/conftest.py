@@ -1,9 +1,9 @@
 import pytest
 
-from binbrain.config import BrainConfig, load_config
-from binbrain.sim.scenario import Scenario
-from binbrain.vision.tracker import Tracker
-from binbrain.world.model import WorldModel
+from dustebrain.config import BrainConfig, load_config
+from dustebrain.sim.scenario import Scenario
+from dustebrain.vision.tracker import Tracker
+from dustebrain.world.model import WorldModel
 
 
 @pytest.fixture(scope="session")

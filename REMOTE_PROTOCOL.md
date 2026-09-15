@@ -1,10 +1,10 @@
 # REMOTE PROTOCOL
 
-ESP-NOW link between **BIN CONTROL SYSTEM v0.0001** and **BIN-CHAD**.
+ESP-NOW link between **BIN CONTROL SYSTEM v0.0001** and **DUST-E**.
 
 Chosen over Wi-Fi/MQTT because it is peer-to-peer, needs no router, no
 credentials and no association, and delivers a keypress in single-digit
-milliseconds. At a hackathon the venue Wi-Fi is congested, captive-portalled,
+milliseconds. At a crowded venue the Wi-Fi is congested, captive-portalled,
 or both. ESP-NOW does not care.
 
 Reference: <https://developer.espressif.com/blog/2024/08/arduino-esp-now-lib/>
@@ -16,11 +16,11 @@ Reference: <https://developer.espressif.com/blog/2024/08/arduino-esp-now-lib/>
 | | |
 |---|---|
 | Transport | ESP-NOW (802.11 vendor action frames) |
-| Channel | 1 (`BINCHAD_ESPNOW_CHANNEL`) — **both ends pin it explicitly** |
+| Channel | 1 (`DUSTE_ESPNOW_CHANNEL`) — **both ends pin it explicitly** |
 | Encryption | None |
 | Mode | `WIFI_STA`, disconnected |
 | Pairing | None. The remote broadcasts; the bin answers and both then remember each other as unicast peers. |
-| Device ID | `0x2A` (`BINCHAD_DEVICE_ID`) — change it to run two bins in one room |
+| Device ID | `0x2A` (`DUSTE_DEVICE_ID`) — change it to run two bins in one room |
 | Latency | ~2–5 ms typical, well inside the 200 ms target |
 | Range | 30 m+ line of sight; more than enough for a stage |
 
@@ -33,8 +33,8 @@ the single most common ESP-NOW failure.
 `protocol.h` exists **twice, byte-identical**:
 
 ```
-firmware/BinChad/src/remote/protocol.h
-firmware/BinRemote/src/config/protocol.h
+firmware/DustE/src/remote/protocol.h
+firmware/DustERemote/src/config/protocol.h
 ```
 
 Arduino sketches cannot share files outside their own folder, so it is
@@ -64,7 +64,7 @@ struct __attribute__((packed)) RemotePacket {
 | Offset | Field | Notes |
 |---:|---|---|
 | 0 | `deviceId` | Rejected if it is not `0x2A`. |
-| 1 | `version` | Rejected on mismatch — no negotiation, this is a hackathon. |
+| 1 | `version` | Rejected on mismatch — no negotiation, both ends are flashed together. |
 | 2 | `type` | Bin accepts `PKT_COMMAND` only. |
 | 3 | `command` | See §3. |
 | 4 | `sequence` | The de-duplication key. |
@@ -93,7 +93,7 @@ readout, which only ever goes down.
 ### 2.3 Checksum
 
 ```c
-static inline uint8_t binchad_checksum(const uint8_t *b, uint8_t len) {
+static inline uint8_t duste_checksum(const uint8_t *b, uint8_t len) {
     uint8_t x = 0;
     for (uint8_t i = 0; i < len - 1; ++i) x ^= b[i];
     return (uint8_t)(~x);          // inverted on purpose
@@ -234,7 +234,7 @@ answers. This is what makes the behaviour read as *deliberate* rather than
 
 1. Add the value to `RemoteCommand` in `protocol.h`. **Never renumber existing
    values** — the two firmwares are flashed independently and will disagree.
-2. Add a case to `binchad_cmd_name()`.
+2. Add a case to `duste_cmd_name()`.
 3. Copy `protocol.h` to the other firmware.
 4. Bin side: add a case to `BehaviorManager::executeCommand()`.
 5. Decide whether it should bypass the mistranslation engine (§5.3).

@@ -2,7 +2,7 @@
 
 ### The part of the trash bin that has opinions
 
-The high-level brain of the USELESS TRASH BIN companion. It runs on the
+The high-level brain of the DUST-E companion. It runs on the
 **Arduino UNO Q's Linux side**: it sees, remembers, and decides. The ESP32 body
 executes, and has the last word on anything that moves.
 
@@ -56,7 +56,7 @@ USB camera ─► latest-frame grabber ─► detector (ONNX, ≤ 5 Hz) ─► t
 cd brain
 pip install numpy pyyaml pytest
 python -m pytest                                   # 55 tests, no camera, no model
-python -m binbrain.apps.vision_node --sim walk_in  # a scripted person
+python -m dustebrain.apps.vision_node --sim walk_in  # a scripted person
 ```
 
 Scenarios: `walk_in`, `flicker`, `returning`, `two_people_swap`,
@@ -69,8 +69,8 @@ speed, and `--snapshot 1` to print the LLM summary every second.
 sudo apt install python3-opencv python3-numpy python3-yaml python3-pytest
 cd brain
 python3 -m pytest
-python3 -m binbrain.apps.vision_node --bench 50      # acceptance: >= 3 Hz
-python3 -m binbrain.apps.vision_node --snapshot 2    # live
+python3 -m dustebrain.apps.vision_node --bench 50      # acceptance: >= 3 Hz
+python3 -m dustebrain.apps.vision_node --snapshot 2    # live
 ```
 
 The camera goes through the **powered USB-C hub**: the UNO Q has one USB-C
@@ -135,20 +135,20 @@ range sensors' job, never the camera's.
 | Path | Contents |
 |---|---|
 | `config/default.yaml` | Every threshold. The only place defaults live. |
-| `binbrain/config.py` | Loader: merges overrides, rejects unknown/missing keys, validates contradictions. |
-| `binbrain/events.py` | The event vocabulary for all phases. |
-| `binbrain/prng.py` | Bit-exact port of the firmware's xorshift32, so behaviour stays reproducible from a seed. |
-| `binbrain/vision/camera.py` | Latest-frame grabber thread, reconnect, file replay. |
-| `binbrain/vision/detector.py` | ONNX YOLO via `cv2.dnn` or onnxruntime; numpy decode + NMS. |
-| `binbrain/vision/appearance.py` | Torso colour histogram for short-term re-identification. RAM only. |
-| `binbrain/vision/tracker.py` | Association, track lifecycle, distance smoothing, radial velocity. |
-| `binbrain/vision/geometry.py` | Bearing, and ground/height/width distance with honest bounds. |
-| `binbrain/world/model.py` | People, identity across track breaks, zones, motion, objects, events, summaries. |
-| `binbrain/sim/scenario.py` | Deterministic scripted scenarios through the real geometry. |
-| `binbrain/apps/vision_node.py` | The phase-1 entry point. |
+| `dustebrain/config.py` | Loader: merges overrides, rejects unknown/missing keys, validates contradictions. |
+| `dustebrain/events.py` | The event vocabulary for all phases. |
+| `dustebrain/prng.py` | Bit-exact port of the firmware's xorshift32, so behaviour stays reproducible from a seed. |
+| `dustebrain/vision/camera.py` | Latest-frame grabber thread, reconnect, file replay. |
+| `dustebrain/vision/detector.py` | ONNX YOLO via `cv2.dnn` or onnxruntime; numpy decode + NMS. |
+| `dustebrain/vision/appearance.py` | Torso colour histogram for short-term re-identification. RAM only. |
+| `dustebrain/vision/tracker.py` | Association, track lifecycle, distance smoothing, radial velocity. |
+| `dustebrain/vision/geometry.py` | Bearing, and ground/height/width distance with honest bounds. |
+| `dustebrain/world/model.py` | People, identity across track breaks, zones, motion, objects, events, summaries. |
+| `dustebrain/sim/scenario.py` | Deterministic scripted scenarios through the real geometry. |
+| `dustebrain/apps/vision_node.py` | The phase-1 entry point. |
 | `tests/` | One file per module; `test_world_model.py` is the phase-1 acceptance suite. |
 
-Importing `binbrain` does not import OpenCV. Only the camera, the detector
+Importing `dustebrain` does not import OpenCV. Only the camera, the detector
 backends and `--show` do, so everything else runs on a machine with nothing
 but numpy.
 

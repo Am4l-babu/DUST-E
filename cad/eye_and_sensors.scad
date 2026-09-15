@@ -14,7 +14,7 @@
 //  glossy - the contrast is what sells it.
 // =============================================================================
 
-include <binchad_params.scad>
+include <duste_params.scad>
 
 part = "all";
 

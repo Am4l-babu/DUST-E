@@ -2,7 +2,7 @@
 
 A standalone "useless box" module: a toggle switch that looks like a normal
 button, but a servo arm reaches out and flips it back off. Unrelated to
-BinChad/BinRemote — this runs on its own tiny board and doesn't touch the
+DustE/DustERemote — this runs on its own tiny board and doesn't touch the
 ESP-NOW protocol or the rest of this repo's firmware.
 
 ## Hardware

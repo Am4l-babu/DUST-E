@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from binbrain.vision.detector import COCO_LABELS, decode_yolo, letterbox_params, nms
+from dustebrain.vision.detector import COCO_LABELS, decode_yolo, letterbox_params, nms
 
 NC = len(COCO_LABELS)
 

@@ -12,11 +12,11 @@
 //  Serviceability rule for this whole project: nothing is glued and nothing
 //  is buried. Every module comes out on M3 screws into heat-set inserts, and
 //  the tray slides out of the back with the wiring still attached. At a
-//  hackathon you will be debugging this on a table with ten minutes to go,
+//  live demo you will be debugging this on a table with ten minutes to go,
 //  and a bin you have to destroy to open is a bin you cannot fix.
 // =============================================================================
 
-include <binchad_params.scad>
+include <duste_params.scad>
 
 part = "all";
 

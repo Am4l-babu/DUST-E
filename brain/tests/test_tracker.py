@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from binbrain.vision import appearance
-from binbrain.vision.tracker import Tracker, TrackStatus
-from binbrain.vision.types import BBox, Detection
+from dustebrain.vision import appearance
+from dustebrain.vision.tracker import Tracker, TrackStatus
+from dustebrain.vision.types import BBox, Detection
 
 PERSON = BBox(0.40, 0.20, 0.55, 0.90)
 
@@ -64,7 +64,7 @@ def test_revived_track_keeps_its_id(cfg):
 
 
 def test_radial_velocity_sign(cfg):
-    from binbrain.vision.geometry import box_for_standing_object
+    from dustebrain.vision.geometry import box_for_standing_object
 
     tr = Tracker(cfg)
     for i in range(12):

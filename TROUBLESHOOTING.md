@@ -113,7 +113,7 @@ To clear a fault without a power cycle: press the hidden trigger. The bin runs
 | **Different channels** | Both ends must call `esp_wifi_set_channel()`. The single most common ESP-NOW failure — the link silently does nothing. |
 | **`protocol.h` copies have diverged** | They must be byte-identical. A mismatch fails the checksum on every packet. `diff` them. |
 | USB CDC On Boot disabled on the remote | GPIO20/21 are buttons. Without USB CDC they are UART0 and the remote appears dead. |
-| Different `BINCHAD_DEVICE_ID` | Both must be `0x2A`. |
+| Different `DUSTE_DEVICE_ID` | Both must be `0x2A`. |
 | Buttons held during boot on GPIO 2/8/9 | Strapping pins. Release and reset. |
 | It **is** working | Check the serial log. `[remote] asked OPEN -> doing CLOSE` means the link is perfect and the bin is simply refusing you. That is the product. |
 

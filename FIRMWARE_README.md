@@ -10,7 +10,7 @@ Two sketches, one shared protocol header, no external state.
 
 | | Bin | Remote |
 |---|---|---|
-| Sketch | `firmware/BinChad/BinChad.ino` | `firmware/BinRemote/BinRemote.ino` |
+| Sketch | `firmware/DustE/DustE.ino` | `firmware/DustERemote/DustERemote.ino` |
 | Board | ESP32S3 Dev Module | ESP32C3 Dev Module |
 | Core | Arduino-ESP32 **3.x** | Arduino-ESP32 **3.x** |
 | USB CDC On Boot | **Enabled** | **Enabled** (mandatory — GPIO20/21 are buttons) |
@@ -47,7 +47,7 @@ the core.
 The I²S build streams 16-bit mono WAV files from LittleFS.
 
 ```bash
-python tools/make_wavs.py          # writes placeholder clips to firmware/BinChad/data/
+python tools/make_wavs.py          # writes placeholder clips to firmware/DustE/data/
 ```
 
 Then in Arduino IDE: **Tools → ESP32 Sketch Data Upload**
@@ -55,7 +55,7 @@ Then in Arduino IDE: **Tools → ESP32 Sketch Data Upload**
 
 ```bash
 arduino-cli ... --build-property build.partitions=default
-mklittlefs -c firmware/BinChad/data -s 1572864 littlefs.bin
+mklittlefs -c firmware/DustE/data -s 1572864 littlefs.bin
 esptool.py --chip esp32s3 write_flash 0x290000 littlefs.bin   # check YOUR partition offset
 ```
 
@@ -68,8 +68,8 @@ file is not an error; that clip is simply silent.
 ## 2. Module map
 
 ```
-firmware/BinChad/
-  BinChad.ino                 setup() + loop(). Calls update() on everything, every pass.
+firmware/DustE/
+  DustE.ino                 setup() + loop(). Calls update() on everything, every pass.
   data/                       WAV clips -> LittleFS
   src/
     config/
