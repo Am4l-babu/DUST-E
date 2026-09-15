@@ -1,0 +1,86 @@
+# =============================================================================
+#  default.yaml - every tunable number in the brain (Arduino UNO Q, Linux side).
+#
+#  The same rule as firmware settings.h: if it is a threshold, it lives here,
+#  not in code. This file is the single source of defaults - the Python
+#  dataclasses have none, so a value cannot silently differ between the two.
+#
+#  Override on the board without editing this file:
+#      python -m binbrain.apps.vision_node --config /etc/binbrain/local.yaml
+#  An override file only needs the keys it changes. Unknown keys are an error,
+#  so a typo cannot quietly leave a default in place.
+#
+#  Distances in metres, angles in degrees, times in seconds, box coordinates
+#  normalised 0..1 (x to the right, y down).
+# =============================================================================
+
+camera:
+  source: "0"              # V4L2 index ("0" = /dev/video0) or a video file path for replay
+  width: 640
+  height: 480
+  fps: 15
+  # Measure these for YOUR camera and mount - distance estimates depend on
+  # them directly. A Logitech C920-class webcam is ~70 x 43. A wide-angle
+  # camera (VFOV >= 55) sees whole people at interaction distance; a narrow
+  # one cannot (see docs/COMPANION_ARCHITECTURE.md section 12).
+  hfov_deg: 70.0
+  vfov_deg: 43.0
+  flip_horizontal: false
+  stale_after_s: 2.0       # no frame for this long -> vision OFFLINE (never "nobody here")
+  reconnect_s: 2.0
+
+detector:
+  backend: opencv          # opencv (cv2.dnn) | onnxruntime | none
+  model: models/yolov8n-320.onnx   # relative paths resolve against brain/
+  input_size: 320
+  score_threshold: 0.40
+  nms_iou: 0.45
+  rate_hz: 5.0             # the tracker bridges the gaps; more is not better on 4x A53
+  threads: 4
+  labels: []               # empty = the 80 COCO classes, in export order
+  keep_labels: []          # empty = keep everything the model knows
+
+geometry:
+  camera_height_m: 0.60    # lens above the floor
+  camera_pitch_deg: 5.0    # positive = tilted up
+  person_height_m: 1.70   # used only when head and feet are both in frame
+  person_width_m: 0.45    # shoulder-width fallback when the box is cut off
+  edge_margin: 0.01        # a box this close to the frame edge counts as cut off
+  min_ground_angle_deg: 1.5
+  max_range_m: 12.0
+  ranged_labels: [person]  # distance is only estimated for things standing on the floor
+
+tracker:
+  iou_match: 0.20
+  max_center_jump: 0.20    # normalised, when boxes no longer overlap
+  confirm_hits: 3          # detections before a track is believed
+  lost_after_s: 1.0
+  forget_after_s: 3.0
+  box_smoothing: 0.6       # weight of the newest detection
+  distance_smoothing: 0.5
+  velocity_window_s: 1.2
+  min_velocity_samples: 3
+
+world:
+  person_label: person
+  person_lost_s: 2.5       # out of view this long -> PERSON_LOST (a blink is not a departure)
+  return_window_s: 120.0   # a person lost longer than this is forgotten entirely
+  reassociate_s: 1.5       # without an appearance match, only re-link very recent tracks...
+  reassociate_center_dist: 0.20   # ...that reappear near where they vanished
+  reid_similarity: 0.70    # appearance histogram intersection, 0..1
+  approach_speed_mps: 0.20
+  leave_speed_mps: 0.20
+  stationary_speed_mps: 0.10
+  motion_confirm_s: 0.6
+  object_memory_s: 8.0     # the same cup seen again inside this is not news
+  ahead_deg: 12.0          # |bearing| inside this is "ahead" in summaries
+  zones:
+    too_close_m: 0.8       # below: STOP / back away
+    interact_max_m: 1.5    # 0.8-1.5: INTERACTION
+    approach_max_m: 2.0    # 1.5-2.0: APPROACH
+    notice_max_m: 3.0      # 2.0-3.0: NOTICE, beyond: FAR
+    hysteresis_m: 0.10
+
+logging:
+  level: INFO
+  events_jsonl: ""         # path to append every event as JSON, empty = off

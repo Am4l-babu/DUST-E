@@ -1,0 +1,9 @@
+[project]
+name = "binbrain"
+version = "0.1.0"
+description = "USELESS TRASH BIN companion - the UNO Q brain"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

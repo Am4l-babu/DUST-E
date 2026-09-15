@@ -25,6 +25,11 @@ unreasonable amount of engineering.
 |---|---|
 | `firmware/BinChad/` | Main controller firmware (ESP32-S3). Arduino sketch, modular `src/` tree. |
 | `firmware/BinRemote/` | Remote firmware (ESP32-C3). |
+| `firmware/TrashBotWeb/` | The web remote: a second, simpler machine (ESP32 + L298N + two DC motors) that serves its own browser dashboard. The phone is its remote, its speaker and its eyes. See its [README](firmware/TrashBotWeb/README.md) and [PROTOCOL](firmware/TrashBotWeb/PROTOCOL.md). |
+| `firmware/TrashBotCam/` | Optional ESP32-CAM companion for the web remote: serves snapshots the phone runs its detector on. [README](firmware/TrashBotCam/README.md). |
+| `brain/` | **In progress:** the autonomous-companion brain for the Arduino UNO Q (Python). Phase 1: camera, detection, tracking, world model. [README](brain/README.md). |
+| `docs/COMPANION_ARCHITECTURE.md` | Analysis and phased plan for evolving the bin into an autonomous companion: reuse, conflicts, missing hardware, protocol, safety. |
+| `audio/` | The voice clips. The web remote's filesystem image ships them; more can be uploaded from its AUDIO tab. |
 | `cad/` | Parametric OpenSCAD source for all 24 printed parts. |
 | `docs/` | Generated diagrams (regenerate with `python tools/render_docs.py`). |
 | `tools/` | Diagram renderer, WAV generator, and a static consistency checker. |
@@ -106,6 +111,46 @@ what turns a mechanism into a joke.
 
 ---
 
+## The second machine: the web remote
+
+`firmware/TrashBotWeb/` is a different build of the same idea. Instead of an
+oversized labelled remote there is no remote at all — the ESP32 serves a
+dashboard and your phone becomes the thing it disobeys.
+
+It is a deliberately smaller machine: **ESP32 + L298N + two DC motors**, and
+nothing else is required or pretended to exist. It drives, it argues, and it
+files a written report about why it went the other way.
+
+```
+phone ──Wi-Fi / BLE / USB──> ESP32 ──> L298N ──> two motors
+  │  ▲                         │
+  │  └─ "play this" ───────────┼── sound bank    (31 events -> clips you upload)
+  └──── "I saw a person" ─────┼── vision intake (the detector runs on the phone)
+                               ├── web server + WebSocket
+                               ├── personality engine  (7 traits, 9 moods)
+                               └── safety layer        (has the last word)
+```
+
+The phone is the speaker and the eyes as well as the remote. Clips are
+uploaded from the dashboard's AUDIO tab and assigned to events; the bin only
+ever sends a tiny "play this" message, over Wi-Fi, Bluetooth and USB at once.
+The VISION tab runs a person-and-object detector in the browser, on the
+phone's camera or on an ESP32-CAM's snapshots, and reports what it saw.
+
+The same priority order applies, and it shows up in the code rather than in
+the marketing: the safety layer runs *before* the personality engine and
+cannot be reached by it. STOP always stops, the controls are hold-to-drive,
+the motors cut if the browser goes quiet for 1.5 seconds, and the dashboard
+reports `BATTERY — NOT INSTRUMENTED` rather than inventing a percentage for a
+sensor that is not fitted.
+
+Built and verified with PlatformIO — `pio run` in that folder, then
+`pio run -t uploadfs` for the dashboard. Full details, including the six
+places where it deliberately departs from a literal reading of the brief, are
+in [firmware/TrashBotWeb/README.md](firmware/TrashBotWeb/README.md).
+
+---
+
 ## Design rules this project follows
 
 **Serious engineering, ridiculous purpose.** Every subsystem is built as if it
@@ -113,6 +158,9 @@ mattered. None of it matters.
 
 **The machine is the attraction.** No app, no cloud, no router, no dashboard.
 ESP-NOW is peer-to-peer; unplug the venue's Wi-Fi and nothing changes.
+(`firmware/TrashBotWeb/` deliberately trades this away for a browser
+dashboard — but it carries its own access point, so it still needs nothing
+from the venue.)
 
 **Comedy never overrides safety.** The priority order, applied to every design
 decision in this repo:
@@ -191,8 +239,11 @@ The base machine must work with the camera physically removed. That is not a
 style preference — it is the difference between a demo that survives a badly
 lit conference hall and one that does not.
 
-**Not verified here:** the firmware has not been compiled and the OpenSCAD has
-not been rendered in this environment — no toolchain was available. Treat the
+**Not verified here:** the BIN-CHAD and BinRemote firmware has not been
+compiled and the OpenSCAD has not been rendered in this environment — no
+toolchain was available for them. (`firmware/TrashBotWeb/` is the exception:
+it builds clean with no warnings under PlatformIO, and its LittleFS image
+packs. It has not been run on hardware.) Treat the
 first build as a bring-up, and expect to fix a missing include or a tight
 tolerance. Every module was written against the documented library APIs and
 reviewed by hand.

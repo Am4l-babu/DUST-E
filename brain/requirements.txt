@@ -1,0 +1,13 @@
+# Core - enough for the tracker, world model, simulator and every test.
+numpy>=1.24
+PyYAML>=6.0
+
+# Camera and detector. On the UNO Q prefer the Debian packages
+# (sudo apt install python3-opencv) over building a wheel on the board.
+opencv-python-headless>=4.8
+
+# Optional, usually faster than cv2.dnn on ARM: set detector.backend: onnxruntime
+# onnxruntime>=1.16
+
+# Tests
+pytest>=7.0
