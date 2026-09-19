@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d0f11">
+<title>DUST-E BRAIN</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="glyph">&#128465;</span>
+    <span>DUST-E BRAIN</span>
+    <span class="chip" id="link"><i class="dot"></i>OFFLINE</span>
+  </div>
+  <button class="estop" id="estop">&#128721; EMERGENCY STOP</button>
+</header>
+
+<div class="banner" id="estopBanner" hidden>
+  <strong>EMERGENCY STOP ACTIVE</strong>
+  <span id="estopReason"></span>
+  <button id="resetSafety">RESET SAFETY SYSTEM</button>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="drive">DRIVE</button>
+  <button class="tab" data-tab="hardware">HW</button>
+  <button class="tab" data-tab="debug">DEBUG</button>
+</nav>
+
+<main class="app">
+
+  <!-- ================= DRIVE ================= -->
+  <section class="panel active" data-panel="drive">
+    <div class="card status-card">
+      <div class="stat"><label>HANDSHAKE</label><output id="stHandshake">&mdash;</output></div>
+      <div class="stat"><label>MOTION_OK</label><output id="stMotionOk">&mdash;</output></div>
+      <div class="stat"><label>BATTERY</label><output id="stBattery">&mdash;</output></div>
+      <div class="stat"><label>INHIBIT</label><output id="stInhibit">&mdash;</output></div>
+    </div>
+
+    <div class="card control-card">
+      <p class="note">
+        Sent as <b>src=manual</b>, same ceiling and validator as
+        <code>body_probe.py</code>. Held while pressed; released stops.
+        Every command here is subject to the XIAO's reflex layer regardless
+        of what this page asks for.
+      </p>
+      <div class="dpad">
+        <button class="dbtn" data-l="0.4"  data-r="1">&#8598;</button>
+        <button class="dbtn" data-l="1"    data-r="1">&#9650;</button>
+        <button class="dbtn" data-l="1"    data-r="0.4">&#8599;</button>
+        <button class="dbtn" data-l="-1"   data-r="1">&#9664;</button>
+        <button class="dbtn stop" id="stopBtn">STOP</button>
+        <button class="dbtn" data-l="1"    data-r="-1">&#9654;</button>
+        <button class="dbtn" data-l="-0.4" data-r="-1">&#8601;</button>
+        <button class="dbtn" data-l="-1"   data-r="-1">&#9660;</button>
+        <button class="dbtn" data-l="-1"   data-r="-0.4">&#8600;</button>
+      </div>
+      <div class="speed">
+        <label for="speed">SPEED <output id="speedOut">40%</output></label>
+        <input type="range" id="speed" min="10" max="100" step="5" value="40">
+      </div>
+      <div class="kv" id="ceilings"></div>
+    </div>
+  </section>
+
+  <!-- ================= HARDWARE ================= -->
+  <section class="panel" data-panel="hardware">
+    <div class="card">
+      <label class="card-title">BODY HANDSHAKE</label>
+      <p class="note">
+        Reported by the XIAO's own HELLO message - nothing here is guessed on
+        this side of the link.
+      </p>
+      <div class="kv" id="hwFw"></div>
+      <div class="hwlist" id="hwList"></div>
+    </div>
+    <div class="card">
+      <label class="card-title">LIMITS (CEILINGS)</label>
+      <p class="note">Ceilings can only be lowered over this link, never raised.</p>
+      <div class="kv" id="limitsList"></div>
+    </div>
+    <div class="card">
+      <label class="card-title">TELEMETRY (RAW)</label>
+      <div class="kv" id="telemetryRaw"></div>
+    </div>
+  </section>
+
+  <!-- ================= DEBUG ================= -->
+  <section class="panel" data-panel="debug">
+    <div class="card">
+      <label class="card-title">COUNTERS</label>
+      <div class="kv" id="counters"></div>
+    </div>
+    <div class="card log-card">
+      <label class="card-title">WIRE TRACE (last 100)</label>
+      <div class="log" id="wireLog"></div>
+    </div>
+    <div class="card log-card">
+      <label class="card-title">EVENTS (last 100)</label>
+      <div class="log" id="eventLog"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

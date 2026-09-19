@@ -27,12 +27,16 @@ unreasonable amount of engineering.
 | `firmware/DustERemote/` | Remote firmware (ESP32-C3). |
 | `firmware/DustEWeb/` | The web remote: a second, simpler machine (ESP32 + L298N + two DC motors) that serves its own browser dashboard. The phone is its remote, its speaker and its eyes. See its [README](firmware/DustEWeb/README.md) and [PROTOCOL](firmware/DustEWeb/PROTOCOL.md). |
 | `firmware/DustECam/` | Optional ESP32-CAM companion for the web remote: serves snapshots the phone runs its detector on. [README](firmware/DustECam/README.md). |
-| `brain/` | **In progress:** the autonomous-companion brain for the Arduino UNO Q (Python). Phase 1: camera, detection, tracking, world model. [README](brain/README.md). |
+| `firmware/DustEBody/` | **In progress:** body controller firmware for the XIAO ESP32-S3 - motors, lid, LEDs, and the reflex safety that has the last word on anything that moves. [README](firmware/DustEBody/README.md). |
+| `firmware/DustESensorNode/` | **In progress:** the UNO Q's own sensor firmware - HC-SR04 fan, IR throat, and the MOTION_OK safety pulse the XIAO body relies on. [README](firmware/DustESensorNode/README.md). |
+| `brain/` | **In progress:** the autonomous-companion brain for the Arduino UNO Q (Python). Phase 1 (vision) done; Phase 2 (XIAO body link, safety validator, DRIVE/HW/DEBUG dashboard) nearly done. [README](brain/README.md). |
 | `docs/COMPANION_ARCHITECTURE.md` | Analysis and phased plan for evolving the bin into an autonomous companion: reuse, conflicts, missing hardware, protocol, safety. |
+| `docs/COMPANION_BOM.md` | Shopping list for the companion upgrade: what to buy per phase, sourced links, and why each part removes a specific failure. |
 | `audio/` | The voice clips. The web remote's filesystem image ships them; more can be uploaded from its AUDIO tab. |
 | `cad/` | Parametric OpenSCAD source for all 24 printed parts. |
 | `docs/` | Generated diagrams (regenerate with `python tools/render_docs.py`). |
 | `tools/` | Diagram renderer, WAV generator, and a static consistency checker. |
+| `tests/` | Standalone bench bring-up sketches, one board/part at a time (not the `brain/` pytest suite). `xiao_motor_test/` (XIAO ESP32-S3 + L298N, `pio run` builds) and `cam_tilt_test/` (UNO Q camera tilt servo, D11, `arduino-cli compile` builds) are current; `l298n_motor_test/` and `obstacle_avoid_test/` are superseded records of the earlier UNO Q-driven wiring. |
 | `BOM.csv` | Full bill of materials with prices and search links. |
 | `PINOUT.md` | Exact GPIO map for both boards, plus the pins you must not touch. |
 | `WIRING.md` | Power budget, distribution, connection tables, the servo cutoff circuit. |

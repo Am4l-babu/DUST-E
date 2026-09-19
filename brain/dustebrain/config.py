@@ -107,6 +107,29 @@ class WorldConfig:
 
 
 @dataclass(frozen=True)
+class BodyConfig:
+    heartbeat_ms: int
+    link_timeout_ms: int
+    cmd_ttl_default_ms: int
+    cmd_ttl_max_ms: int
+    tick_ms: int
+    accel_pct_per_tick: int
+    decel_mult: int
+    auto_max_pct: int
+    manual_max_pct: int
+    motion_ok_window_ms: int
+    motion_ok_min_edges: int
+    escape_duty_pct: int
+    escape_ms: int
+    escape_cooldown_ms: int
+    battery_low_mv: int
+    battery_critical_mv: int
+    max_motion_ms: int
+    max_gesture_ms: int
+    rate_limit_hz: int
+
+
+@dataclass(frozen=True)
 class LoggingConfig:
     level: str
     events_jsonl: str
@@ -119,6 +142,7 @@ class BrainConfig:
     geometry: GeometryConfig
     tracker: TrackerConfig
     world: WorldConfig
+    body: BodyConfig
     logging: LoggingConfig
 
     def resolve_path(self, p: str) -> Path:
@@ -269,6 +293,27 @@ def validate(cfg: BrainConfig) -> None:
     min_gap = min(hi - lo for lo, hi in zip(b, b[1:]))
     need(0.0 <= z.hysteresis_m < min_gap / 2,
          f"world.zones.hysteresis_m must be below half the narrowest zone ({min_gap / 2:.2f} m)")
+
+    b = cfg.body
+    need(b.heartbeat_ms > 0, "body.heartbeat_ms must be positive")
+    need(b.link_timeout_ms >= 2 * b.heartbeat_ms,
+         "body.link_timeout_ms must allow at least two missed heartbeats")
+    need(0 < b.cmd_ttl_default_ms <= b.cmd_ttl_max_ms,
+         "body: need 0 < cmd_ttl_default_ms <= cmd_ttl_max_ms")
+    need(b.tick_ms > 0 and b.accel_pct_per_tick >= 1, "body: tick_ms and accel_pct_per_tick must be >= 1")
+    need(b.decel_mult >= 1, "body.decel_mult must be >= 1 - stopping may never be slower than starting")
+    need(0 < b.auto_max_pct <= b.manual_max_pct <= 100,
+         "body: need 0 < auto_max_pct <= manual_max_pct <= 100")
+    need(b.motion_ok_window_ms > 0 and b.motion_ok_min_edges >= 1,
+         "body: motion_ok window and edge count must be positive")
+    need(0 < b.escape_duty_pct <= b.auto_max_pct,
+         "body.escape_duty_pct must be within the autonomous ceiling")
+    need(b.escape_ms > 0 and b.escape_cooldown_ms >= b.escape_ms,
+         "body: escape_cooldown_ms must be at least escape_ms")
+    need(0 < b.battery_critical_mv < b.battery_low_mv,
+         "body: need 0 < battery_critical_mv < battery_low_mv")
+    need(b.max_motion_ms > 0 and b.max_gesture_ms > 0, "body: motion/gesture caps must be positive")
+    need(b.rate_limit_hz >= 1, "body.rate_limit_hz must be >= 1")
 
     if problems:
         raise ConfigError("invalid configuration:\n  - " + "\n  - ".join(problems))

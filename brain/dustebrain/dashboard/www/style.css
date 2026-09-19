@@ -1,0 +1,117 @@
+/* ==========================================================================
+   DUST-E BRAIN dashboard - same dark-industrial palette as firmware/DustEWeb,
+   scoped to Phase 2: DRIVE, HW, DEBUG only. MIND/AUDIO/VISION/SETUP arrive
+   with the phases that give them something real to show.
+   ========================================================================== */
+
+:root {
+  --bg:      #0d0f11;
+  --panel:   #15181c;
+  --panel-2: #1b1f24;
+  --line:    #262b31;
+  --txt:     #d7dce1;
+  --dim:     #79838d;
+  --amber:   #f5a623;
+  --green:   #3ddc84;
+  --red:     #e5484d;
+  --blue:    #5b9dd9;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--mono);
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+output, label, button, input { font-family: inherit; }
+
+.bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(#15181c, #101316);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 8px; letter-spacing: .18em; font-size: 13px; flex: 1; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px; border-radius: 999px; background: var(--panel-2);
+  border: 1px solid var(--line); font-size: 11px; letter-spacing: .06em; color: var(--dim);
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+.chip.online .dot { background: var(--green); }
+.chip.online { color: var(--txt); }
+
+.estop {
+  background: var(--red); color: #1a0303; border: none; border-radius: 8px;
+  padding: 10px 14px; font-weight: 700; letter-spacing: .04em; cursor: pointer;
+}
+.estop:active { filter: brightness(0.85); }
+
+.banner {
+  background: #3a0d0d; border-bottom: 1px solid var(--red); color: #ffd7d7;
+  padding: 10px 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.banner button {
+  margin-left: auto; background: var(--panel); color: var(--txt);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+
+.tabs { display: flex; gap: 4px; padding: 8px 10px 0; overflow-x: auto; }
+.tab {
+  background: var(--panel); color: var(--dim); border: 1px solid var(--line);
+  border-bottom: none; border-radius: 8px 8px 0 0; padding: 8px 14px;
+  font-size: 12px; letter-spacing: .08em; cursor: pointer;
+}
+.tab.active { color: var(--txt); background: var(--panel-2); }
+
+.app { padding: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 640px; margin: 0 auto; }
+.panel { display: none; flex-direction: column; gap: 10px; }
+.panel.active { display: flex; }
+
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+}
+.card-title { display: block; font-size: 11px; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+.note { color: var(--dim); font-size: 12px; line-height: 1.5; margin: 0 0 10px; }
+.note code { color: var(--txt); }
+
+.status-card { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat label { display: block; font-size: 10px; letter-spacing: .08em; color: var(--dim); }
+.stat output { font-size: 16px; }
+
+.dpad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  max-width: 280px; margin: 0 auto 14px;
+}
+.dbtn {
+  aspect-ratio: 1; background: var(--panel-2); color: var(--txt);
+  border: 1px solid var(--line); border-radius: 10px; font-size: 20px; cursor: pointer;
+  user-select: none; touch-action: none;
+}
+.dbtn:active { background: var(--blue); }
+.dbtn.stop { background: #3a0d0d; color: #ffd7d7; font-size: 12px; font-weight: 700; }
+.dbtn.stop:active { background: var(--red); }
+
+.speed { margin-bottom: 10px; }
+.speed label { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); margin-bottom: 4px; }
+input[type=range] { width: 100%; }
+
+.kv { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.kv .row { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding: 3px 0; }
+.kv .row b { color: var(--dim); font-weight: 400; }
+
+.hwlist { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+
+.log-card .log { max-height: 260px; overflow-y: auto; font-size: 11px; }
+.log div { padding: 2px 0; border-bottom: 1px dashed var(--line); white-space: pre-wrap; word-break: break-all; }
+.log .tx { color: var(--blue); }
+.log .rx { color: var(--green); }
+.log .rx_error { color: var(--red); }

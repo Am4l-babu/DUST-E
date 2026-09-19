@@ -235,9 +235,80 @@ def check_settings_sanity():
 
 
 # ---------------------------------------------------------------------------
+def check_body_matches_brain():
+    """The XIAO firmware and the brain must hold the SAME safety numbers.
+
+    firmware/DustEBody/src/config/settings.h is what runs on the robot;
+    brain/config/default.yaml feeds the Python reference implementation that
+    the failsafe tests are written against. If the two drift apart, those
+    tests are testing a robot that does not exist, which is worse than having
+    no tests at all.
+    """
+    shared = {
+        "LINK_TIMEOUT_MS": "link_timeout_ms",
+        "CMD_TTL_DEFAULT_MS": "cmd_ttl_default_ms",
+        "CMD_TTL_MAX_MS": "cmd_ttl_max_ms",
+        "MOTOR_AUTO_MAX_PCT": "auto_max_pct",
+        "MOTOR_MANUAL_MAX_PCT": "manual_max_pct",
+        "MOTOR_ACCEL_PCT": "accel_pct_per_tick",
+        "MOTOR_DECEL_MULT": "decel_mult",
+        "MOTOR_TICK_MS": "tick_ms",
+        "MOTION_OK_WINDOW_MS": "motion_ok_window_ms",
+        "MOTION_OK_MIN_EDGES": "motion_ok_min_edges",
+        "ESCAPE_DUTY_PCT": "escape_duty_pct",
+        "ESCAPE_MS": "escape_ms",
+        "ESCAPE_COOLDOWN_MS": "escape_cooldown_ms",
+        "BATTERY_LOW_MV": "battery_low_mv",
+        "BATTERY_CRITICAL_MV": "battery_critical_mv",
+    }
+
+    fw = read("firmware", "DustEBody", "src", "config", "settings.h")
+    fw_values = {m.group(1): int(m.group(2)) for m in
+                 re.finditer(r"^static const \w+\s+(\w+)\s*=\s*(\d+)", fw, re.M)}
+
+    yaml_text = read("brain", "config", "default.yaml")
+    parts = yaml_text.split("\nbody:", 1)
+    if len(parts) < 2:
+        problem("brain/config/default.yaml has no body: block")
+        return
+    block = re.split(r"\n(?=\S)", parts[1])[0]
+    yaml_values = {m.group(1): int(m.group(2)) for m in
+                   re.finditer(r"^\s+(\w+):\s*(\d+)", block, re.M)}
+
+    bad = 0
+    for c_name, y_name in shared.items():
+        if c_name not in fw_values:
+            problem(f"DustEBody settings.h: {c_name} missing")
+            bad += 1
+        elif y_name not in yaml_values:
+            problem(f"brain default.yaml body: {y_name} missing")
+            bad += 1
+        elif fw_values[c_name] != yaml_values[y_name]:
+            problem(f"safety value drift: settings.h {c_name}={fw_values[c_name]} but "
+                    f"default.yaml body.{y_name}={yaml_values[y_name]}")
+            bad += 1
+    if not bad:
+        note(f"body/brain safety values: {len(shared)} constants agree")
+
+    # The XIAO exposes eleven pads. Nothing else exists to be driven.
+    xiao_pads = {1, 2, 3, 4, 5, 6, 7, 8, 9, 43, 44}
+    pins = read("firmware", "DustEBody", "src", "config", "pins.h")
+    seen = {}
+    for m in re.finditer(r"^#define\s+(PIN_\w+)\s+(\d+)", pins, re.M):
+        name, gpio = m.group(1), int(m.group(2))
+        if gpio not in xiao_pads:
+            problem(f"DustEBody pins.h: {name} uses GPIO{gpio}, not an exposed XIAO pad")
+        if gpio in seen:
+            problem(f"DustEBody pins.h: GPIO{gpio} assigned to both {seen[gpio]} and {name}")
+        seen[gpio] = name
+    if seen:
+        note(f"DustEBody pins.h: {len(seen)} distinct GPIOs, all on exposed pads")
+
+
 def main():
     for check in (check_pin_maps, check_protocol_copies, check_method_definitions,
-                  check_doc_links, check_wavs, check_settings_sanity):
+                  check_doc_links, check_wavs, check_settings_sanity,
+                  check_body_matches_brain):
         try:
             check()
         except Exception as e:                      # a broken check is a problem too

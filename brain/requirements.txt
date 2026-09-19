@@ -6,6 +6,10 @@ PyYAML>=6.0
 # (sudo apt install python3-opencv) over building a wheel on the board.
 opencv-python-headless>=4.8
 
+# Real body link (brain <-> XIAO ESP32-S3, phase 2b). Optional: importing
+# dustebrain.body.link works without it, only SerialTransport needs it.
+pyserial>=3.5
+
 # Optional, usually faster than cv2.dnn on ARM: set detector.backend: onnxruntime
 # onnxruntime>=1.16
 

@@ -15,6 +15,9 @@ No motors, no body, no LLM. It prints what the robot would believe.
     # replay a recording, draw what it saw
     python -m dustebrain.apps.vision_node --source hallway.mp4 --show
 
+    # no display attached (e.g. the UNO Q, headless) - watch it from a browser
+    python -m dustebrain.apps.vision_node --serve 8081
+
 Exit with Ctrl+C. Loop order, like the firmware's, is not arbitrary:
 grab newest frame -> detect -> signatures -> track -> world -> events.
 """
@@ -58,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
             return run_sim(cfg, args.sim, jsonl, args.realtime, args.snapshot)
         if args.bench:
             return run_bench(cfg, args.bench)
-        return run_live(cfg, jsonl, args.show, args.snapshot, args.duration)
+        return run_live(cfg, jsonl, args.show, args.snapshot, args.duration, args.serve)
     except KeyboardInterrupt:
         return 0
     except FileNotFoundError as e:
@@ -74,6 +77,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--realtime", action="store_true", help="pace --sim at real speed")
     p.add_argument("--bench", type=int, metavar="N", help="time N detector runs and exit")
     p.add_argument("--show", action="store_true", help="draw tracks in a window (needs a display)")
+    p.add_argument("--serve", type=int, metavar="PORT",
+                   help="serve the annotated feed over HTTP (MJPEG) - viewable in a browser, no display needed")
     p.add_argument("--jsonl", help="append events as JSON lines to this file")
     p.add_argument("--snapshot", type=float, metavar="S", default=0.0,
                    help="print the LLM summary every S seconds")
@@ -104,7 +109,8 @@ def run_sim(cfg: BrainConfig, name: str, jsonl: str | None, realtime: bool, snap
     return 0
 
 
-def run_live(cfg: BrainConfig, jsonl: str | None, show: bool, snapshot_s: float, duration_s: float) -> int:
+def run_live(cfg: BrainConfig, jsonl: str | None, show: bool, snapshot_s: float, duration_s: float,
+             serve_port: int | None = None) -> int:
     from ..vision.appearance import torso_signature
     from ..vision.camera import CameraSource
     from ..vision.detector import create_detector
@@ -119,6 +125,13 @@ def run_live(cfg: BrainConfig, jsonl: str | None, show: bool, snapshot_s: float,
     last_index = -1
     next_snapshot = t0
     det_ms: list[float] = []
+
+    stream_server = None
+    if serve_port is not None:
+        from ..vision.stream import VisionStreamServer
+        stream_server = VisionStreamServer(port=serve_port)
+        stream_server.start()
+        print(f"# vision stream: {stream_server.url}")
 
     camera.start()
     log.info("vision node running: detector %s at <= %.1f Hz", detector.name, cfg.detector.rate_hz)
@@ -152,8 +165,13 @@ def run_live(cfg: BrainConfig, jsonl: str | None, show: bool, snapshot_s: float,
                 print(f"  camera {camera.fps:4.1f} fps, detector {statistics.fmean(recent):5.0f} ms  "
                       + json.dumps(world.summary(now)))
                 next_snapshot = now + snapshot_s
-            if show and not _draw(frame.image, tracks, world):
-                break
+
+            if show or stream_server is not None:
+                canvas = _annotate(frame.image, tracks, world)
+                if stream_server is not None:
+                    stream_server.stream.update(canvas)
+                if show and not _draw(canvas):
+                    break
 
             time.sleep(max(0.0, period - (time.monotonic() - loop_start)))
     finally:
@@ -162,6 +180,8 @@ def run_live(cfg: BrainConfig, jsonl: str | None, show: bool, snapshot_s: float,
         if show:
             import cv2
             cv2.destroyAllWindows()
+        if stream_server is not None:
+            stream_server.stop()
     return 0
 
 
@@ -197,7 +217,10 @@ def run_bench(cfg: BrainConfig, n: int) -> int:
     return 0
 
 
-def _draw(image: np.ndarray, tracks, world: WorldModel) -> bool:
+def _annotate(image: np.ndarray, tracks, world: WorldModel) -> np.ndarray:
+    """Pure: returns a drawn-on copy. Shared by the local --show window and
+    the --serve browser stream, so what you see on the bench and what you see
+    on a laptop are pixel-identical, not two drifting implementations."""
     import cv2
 
     h, w = image.shape[:2]
@@ -217,6 +240,12 @@ def _draw(image: np.ndarray, tracks, world: WorldModel) -> bool:
             colour = (200, 200, 0)
         cv2.rectangle(canvas, p1, p2, colour, 2)
         cv2.putText(canvas, text, (p1[0], max(12, p1[1] - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, colour, 1)
+    return canvas
+
+
+def _draw(canvas: np.ndarray) -> bool:
+    import cv2
+
     cv2.imshow("dustebrain vision", canvas)
     return (cv2.waitKey(1) & 0xFF) not in (27, ord("q"))
 

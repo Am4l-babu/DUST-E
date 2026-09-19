@@ -1,6 +1,13 @@
 // =============================================================================
 //  l298n_motor_test.ino - standalone bring-up test for Arduino UNO Q + L298N.
 //
+//  SUPERSEDED for motor bring-up: the L298N driver moved from the UNO Q to
+//  the XIAO ESP32-S3 (docs/COMPANION_ARCHITECTURE.md section 6.2, decided
+//  2026-09-17). Use tests/xiao_motor_test/ instead - it targets the pins
+//  DustEBody actually drives and, unlike this one, has a working PlatformIO
+//  target (`pio run` here builds nothing real; see the platformio.ini note
+//  below). This file stays as a record of the earlier UNO Q wiring.
+//
 //  Not part of the DUST-E build (that uses servos, not a DC motor driver).
 //  This is a bench sketch to confirm wiring before the L298N goes into any
 //  larger project: each motor runs forward, stops, runs reverse, stops, then

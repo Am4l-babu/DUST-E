@@ -81,6 +81,35 @@ world:
     notice_max_m: 3.0      # 2.0-3.0: NOTICE, beyond: FAR
     hysteresis_m: 0.10
 
+body:
+  # The XIAO ESP32-S3. Every number here is also a firmware constant: the
+  # simulator in dustebrain/body/simbody.py is the reference the firmware is
+  # written against, so these two must agree or the tests mean nothing.
+  heartbeat_ms: 100          # brain -> body, every tick
+  link_timeout_ms: 300       # no heartbeat this long -> hard stop
+  cmd_ttl_default_ms: 300    # a velocity command expires unless refreshed
+  cmd_ttl_max_ms: 500        # the body clamps anything longer
+  tick_ms: 20                # ramp update period
+  accel_pct_per_tick: 6      # 0 -> auto ceiling in ~150 ms
+  decel_mult: 3              # stopping always outruns starting. never below 1
+  auto_max_pct: 45           # ceiling while the robot drives itself
+  manual_max_pct: 70         # ceiling for a human at the dashboard
+  # MOTION_OK: the UNO Q MCU toggles one wire while its sensors see no hazard.
+  # Fewer edges than this in the window = obstacle, cliff, bumper, dead MCU or
+  # broken wire, and they are all handled the same way.
+  motion_ok_window_ms: 150
+  motion_ok_min_edges: 2
+  # The only motion allowed while MOTION_OK is absent. Every sensor faces
+  # forward or down-forward, so backing away is the one safe escape.
+  escape_duty_pct: 25
+  escape_ms: 800
+  escape_cooldown_ms: 2000
+  battery_low_mv: 10500      # -> RETURNING_HOME. Sized for a 3S pack; set yours
+  battery_critical_mv: 9800  # -> the body refuses to move at all
+  max_motion_ms: 1500        # cap on a timed motion primitive
+  max_gesture_ms: 3000
+  rate_limit_hz: 60          # per message type, brain side
+
 logging:
   level: INFO
   events_jsonl: ""         # path to append every event as JSON, empty = off

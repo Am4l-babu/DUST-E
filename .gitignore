@@ -17,6 +17,9 @@ brain/models/*.onnx
 brain/models/*.tflite
 *.jsonl
 
+# Local tooling fetched for bring-up, not project source (arduino-cli.exe etc).
+.tools/
+
 # Editor / OS
 .vscode/
 .DS_Store

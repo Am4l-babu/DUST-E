@@ -2,6 +2,14 @@
 // obstacle_avoid_test.ino
 // Arduino UNO Q + L298N + HC-SR04
 //
+// SUPERSEDED for motor bring-up: the L298N driver moved from the UNO Q to
+// the XIAO ESP32-S3 (docs/COMPANION_ARCHITECTURE.md section 6.2, decided
+// 2026-09-17). Use tests/xiao_motor_test/ to bring up the motors now - it
+// targets the pins DustEBody actually drives and has a working PlatformIO
+// target. The HC-SR04 half of this sketch lives on separately in
+// firmware/DustESensorNode/ (UNO Q side). This file stays as a record of
+// the earlier combined wiring.
+//
 // Behavior:
 //   - If an object is closer than OBSTACLE_CM:
 //       Robot spins in the opposite direction at FULL SPEED.

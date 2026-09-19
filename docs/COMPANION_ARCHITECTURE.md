@@ -136,7 +136,7 @@ Both firmwares follow the same three rules the companion must keep:
 
 | Package | Responsibility | Phase |
 |---|---|---|
-| `dustebrain.vision` | camera grabber, detector, appearance signature, tracker, geometry | 1 |
+| `dustebrain.vision` | camera grabber, detector, appearance signature, tracker, geometry, browser-viewable MJPEG stream (`stream.py`) | 1 |
 | `dustebrain.world` | world model, person lifecycle, social zones, events, LLM summary | 1 |
 | `dustebrain.sim` | deterministic synthetic scenarios (tests + DEBUG "simulate a person") | 1 |
 | `dustebrain.body` | serial link, command validator, safety governor, telemetry | 2 |
@@ -148,7 +148,7 @@ Both firmwares follow the same three rules the companion must keep:
 | `dustebrain.mind.social` | social decision system, cooldowns, target selection | 6 |
 | `dustebrain.mind.games`, `.stories` | deterministic game/story engines (no LLM required) | 6 |
 | `dustebrain.expression` | Emotion → PhysicalExpression mapping | 6–7 |
-| `dustebrain.dashboard` | HTTP + WebSocket server, COMPANION and DEBUG tabs | 2 → 7 |
+| `dustebrain.dashboard` | HTTP server, DRIVE + HW + DEBUG tabs (Phase 2, implemented); COMPANION tab and WebSocket push arrive with the phases that need them | 2 → 7 |
 
 **Body (ESP32-S3): `firmware/BinBody/`**, assembled from the reused drivers
 above plus:
@@ -180,35 +180,135 @@ above plus:
 | C9 | **DUST-E remote STOP is deliberately mistranslated** (it speeds things up). | Must never apply to wheels. |
 | C10 | **Motor noise vs. microphone; motor current vs. the UNO Q supply.** | Listening while driving is unreliable; brownouts can reboot the brain mid-drive (the DustEWeb README already warns about this for the ESP32). |
 
-### 6.2 PROPOSED body pin map (ESP32-S3) — not applied, needs a decision
+### 6.2 DECIDED split: UNO Q = processing + sensors, XIAO ESP32-S3 = controllers
 
-**Principle: one safety authority.** Every actuator, and every sensor that can
-stop an actuator, is on the ESP32. The UNO Q MCU drives nothing on the robot.
-The existing UNO Q wiring (L298N on D5–D10, HC-SR04s) would move to the ESP32.
-That is a pin change, so it is listed here and not done.
+**Decision (2026-09-16):** the body controller is a **Seeed XIAO ESP32-S3**.
+The UNO Q's Linux side does the processing. The UNO Q's own header pins, on its
+STM32U585 MCU, carry the sensors, and the XIAO drives the actuators. Pin
+assignments below are **PROPOSED**. They are written into firmware only after
+the open questions at the end of this document are answered.
 
-**Option A (recommended): add a PCA9685 servo driver.** It moves the 5 servos
-to I²C and frees GPIO 4/5/6/7/15. Every other DUST-E pin stays where it is.
+This replaces the full DUST-E ESP32-S3 map. The XIAO exposes only **11 GPIOs**
+(D0–D10 = GPIO 1, 2, 3, 4, 5, 6, 43, 44, 7, 8, 9, all 3.3 V and **not
+5 V tolerant**). The DUST-E map needs 20. The split below is what makes it fit.
 
-| GPIO | Today (DUST-E) | Proposed |
-|---:|---|---|
-| 2, 8, 9, 10–14, 16, 17, 18, 21, 38, 47, 48 | as `pins.h` | **unchanged** |
-| 4 | SERVO_LID | MOTOR_ENA (PWM) → servo moves to PCA9685 ch 0 |
-| 5 | SERVO_EYE_PAN | MOTOR_ENB (PWM) → PCA9685 ch 1 |
-| 6 | SERVO_EYE_TILT | BUMPER_LEFT (NC to GND: a broken wire reads "hit") → PCA9685 ch 2 |
-| 7 | SERVO_FINGER | BUMPER_RIGHT (NC to GND) → PCA9685 ch 3 |
-| 15 | SERVO_FINGER_DOOR | ESTOP_SENSE (aux NC contact of the mushroom switch) → PCA9685 ch 4 |
-| 1 | free | BATTERY_ADC (ADC1_CH0, divider sized for the pack) |
-| 39, 40, 41, 42 | JTAG (unused: the S3's USB-Serial-JTAG is on 19/20) | MOTOR_IN1..IN4 |
-| 43, 44 | UART0 (free when logging on native USB CDC) | I2C1 SDA/SCL, a **dedicated motion-safety bus** (range, cliff, MCP23017 XSHUT expander) so OLED frame flushes can never delay an obstacle read |
+```
+               ┌──────────── UNO Q ────────────┐
+ USB cam, mic ─┤ Linux (QRB2210): brain        │
+               │   │ Bridge (RPC, on-board)    │
+               │ MCU (STM32U585): sensor node  │── HC-SR04 ×3, IR, cliff ×2,
+               │   │                           │   bumpers ×2, E-stop sense,
+               └───┼───────────┬───────────────┘   OLED + INA219 (I²C), buzzer
+                   │           │ USB CDC (via hub): commands, telemetry, TTS audio
+     MOTION_OK ────┘           │
+     (pulse train, 1 wire)     ▼
+               ┌──────── XIAO ESP32-S3 ────────┐
+               │ controller: final authority   │── L298N ─► 2 motors
+               │ over anything that moves      │── PCA9685 (I²C) ─► servos
+               │                               │── WS2812B, MAX98357A (I²S)
+               └───────────────────────────────┘── VL53L0X throat (lid hand safety)
+```
 
-**Option B: no new servo driver.** L298N on 1/39/40/41/42 plus one of 43/44.
-That leaves no pins for bumpers, battery or E-stop sense without an expander
-anyway, which is why A is recommended.
+**Safety authority.** The XIAO is still the only thing that can energise a
+motor, and it has the last word. The UNO Q MCU is a **safety sensor node**. It
+never talks to the motors, but it can veto motion through one wire that Linux
+cannot override:
 
-**The hardware E-stop is not a GPIO.** A latching mushroom switch in series
-with the L298N motor supply cuts motion even if both computers are dead. Its
-auxiliary contact tells the ESP32 so the firmware can latch and report it.
+- **MOTION_OK is a pulse train, not a level.** The MCU toggles the pin from its
+  main loop (~50 Hz) only while its sensors are healthy and nothing is inside
+  the stop distance: front obstacle, cliff, bumper, E-stop aux contact. The
+  XIAO requires ≥ 2 edges in every 150 ms window. A steady HIGH, a steady LOW, a
+  broken wire, a crashed MCU and a hung loop all look the same: no pulses, so
+  no forward motion. It is toggled in software, **never with hardware PWM**,
+  because a timer keeps running after the firmware hangs.
+- **Escape.** While MOTION_OK is absent, the XIAO allows only reverse, at
+  `ESCAPE_DUTY`, for at most `ESCAPE_MS` per event. All the sensors face forward
+  or down-forward, so backing away is the only way out of a wall or an edge.
+  Otherwise the robot would be stuck until someone picked it up.
+- **The brain link** (USB heartbeat, command TTL) is checked independently by
+  the XIAO, exactly as in §8.1.
+- **The hardware E-stop** stays in series with the L298N motor supply and needs
+  no computer at all.
+
+#### XIAO ESP32-S3 (controllers)
+
+Confirmed fitted (2026-09-17): **plain** XIAO ESP32-S3 (not Sense), **one lid
+servo**, **12 WS2812B LEDs**, and a separate USB webcam on the UNO Q. No eye,
+finger or hatch servo yet. With only one servo, the PCA9685 is **not needed
+yet** and everything fits on the 11 pads directly.
+
+| Pad | GPIO | Net | Notes |
+|---|---:|---|---|
+| D0 | 1 | `MOTOR_L_IN1` (PWM) | **10 kΩ pull-down.** L298N ENA jumper **on**. |
+| D1 | 2 | `MOTOR_L_IN2` (PWM) | 10 kΩ pull-down |
+| D2 | 3 | `LED_DATA` → WS2812B DIN (12 LEDs) | Strapping pin, but harmless on a high-impedance LED input. 330 Ω series. |
+| D3 | 4 | `SERVO_LID` | 50 Hz. Servo power from the servo rail, never the XIAO. |
+| D4 | 5 | `I2C_SDA` | VL53L0X throat @0x29 (lid hand safety), and the PCA9685 later. 4.7 kΩ pull-ups. |
+| D5 | 6 | `I2C_SCL` | |
+| D6 | 43 | *spare* | UART0 TX; reserved for `I2S_BCLK` (see below) |
+| D7 | 44 | `MOTION_OK` ← UNO Q MCU D9 | Input. 100 kΩ pull-down so a missing wire reads "not OK". |
+| D8 | 7 | `MOTOR_R_IN3` (PWM) | 10 kΩ pull-down. L298N ENB jumper **on**. |
+| D9 | 8 | `MOTOR_R_IN4` (PWM) | 10 kΩ pull-down |
+| D10 | 9 | *spare* | reserved for `I2S_DOUT` |
+| USB-C | — | brain link to the UNO Q (through the hub) | Arduino: *USB CDC On Boot = Enabled* |
+
+**Growth path, in the order the pins run out.** I²S needs three pins and only
+two are spare, so adding the MAX98357A means adding the PCA9685 at the same
+time and moving the lid servo (and any eye/finger servo) onto it, which frees
+D3 for `I2S_LRCLK`. The alternative, if the amp never arrives, is a USB audio
+adapter on the UNO Q — decided in Phase 4, not now. Either way the firmware
+keeps a `HW_SPEAKER`-style inventory flag, as `DustEWeb/src/config/settings.h`
+does today, so the dashboard says NOT INSTALLED instead of pretending.
+
+**Why the L298N is driven on its IN pins with EN jumpered.** It needs 4 GPIOs
+instead of 6: PWM on IN1 with IN2 low goes forward, the reverse goes backward,
+and both low stops. Both low with EN high is a *brake*, not a coast, which is
+acceptable at this speed. The pull-downs keep all four inputs low while the
+XIAO is resetting, unpowered or flashing. The motor pins deliberately avoid
+GPIO 43/44, which the boot ROM toggles.
+
+**Servos move to a PCA9685** because there are no GPIOs left for them. One
+I²C device gives 16 channels: eye pan, eye tilt, lid, finger and hatch, plus
+spares. PCA9685 channel 15 is used as a logic output to drive the **servo-rail
+MOSFET**, so the servo rail stays software-switchable.
+
+#### UNO Q MCU header (sensors)
+
+Existing assignments from `firmware/UselessBox/UselessBox_UnoQ` are **kept**.
+Only the pins freed by moving the L298N and the servo change.
+
+| Pin | Today | Proposed | Notes |
+|---|---|---|---|
+| D2 / D4 | HC-SR04 #1 TRIG / ECHO | **unchanged** | ECHO through a 5 V → 3.3 V divider |
+| A0 / A1 | HC-SR04 #2 TRIG / ECHO | **unchanged** | divider |
+| A2 / A3 | HC-SR04 #3 TRIG / ECHO | **unchanged** | divider |
+| D3 | active buzzer | **unchanged** | |
+| D12 | switch | **unchanged** → NORMAL MODE switch | |
+| D13 | IR obstacle sensor | **unchanged** | |
+| SDA/SCL (`Wire2`) | SSD1306 OLED | **unchanged**, + INA219 @0x40 for battery voltage and current | no free analog pin, so battery goes on I²C |
+| D5 | L298N ENA | `BUMPER_L` | NC switch to GND, pull-up: a broken wire reads "hit" |
+| D6 | L298N ENB | `BUMPER_R` | same |
+| D7 | L298N IN1 | `CLIFF_L` | digital IR cliff sensor, fail-safe polarity |
+| D8 | L298N IN2 | `CLIFF_R` | |
+| D9 | L298N IN3 | `MOTION_OK` → XIAO D7 | software-toggled pulse train |
+| D10 | L298N IN4 | `ESTOP_SENSE` | aux NC contact of the mushroom switch |
+| D11 | servo | camera tilt servo | **fitted (19 Sep 2026):** up/down tilt for the USB webcam. `Servo.h` confirmed to compile against `arduino:zephyr:unoq` on this pin (`tests/cam_tilt_test/`); not yet flashed - the camera mount's real mechanical range is unconfirmed, so nothing has moved it yet |
+
+**Consequence for the bench tests.** `tests/l298n_motor_test` and
+`tests/obstacle_avoid_test` drive the L298N from the UNO Q. They stay in the
+repo as a record of the bring-up, but they no longer match the wiring once the
+driver moves to the XIAO. **Done (17 Sep 2026):** `tests/xiao_motor_test/`
+replaces them for motor bring-up - same isolated-forward/reverse/together
+sequence, on the XIAO's actual pins (matching `firmware/DustEBody/src/config/pins.h`
+and `src/motor/motors.cpp`). Unlike the UNO Q sketches, it has a real
+PlatformIO target and `pio run` in that folder actually builds (verified:
+5.6% RAM, 7.8% flash, no warnings). The two superseded sketches now carry a
+pointer comment at the top of each `main.ino` directing readers here.
+
+**Why sensors on the MCU are acceptable here.** The HC-SR04 `pulseIn()` calls
+block for up to 12 ms each. On the MCU that only delays the next sensor read,
+never a motor update. On the XIAO it would stall motor ramping and audio
+streaming, which is why they are not there.
 
 ---
 
@@ -222,7 +322,9 @@ Only what the architecture actually needs, in the order it becomes necessary.
 | Phase 1 | Powered USB-C hub with PD pass-through | C5 |
 | Phase 2 | Physical E-stop (latching, in the motor supply) | §6.2; firmware-only E-stop is not enough for a moving robot |
 | Phase 2 | Separate 5 V ≥ 3 A buck for the UNO Q + hub, star ground | C10 |
-| Phase 2 | Battery voltage divider → ESP32 ADC | `BATTERY_LOW` and the low-battery stop cannot be faked |
+| Phase 2 | INA219 (I²C) on the UNO Q MCU's `Wire2` | `BATTERY_LOW` and the low-battery stop cannot be faked, and there is no free analog pin |
+| Phase 2 | PCA9685 16-channel servo driver | The XIAO has no GPIOs left for servos (§6.2) |
+| Phase 2 | 4× 10 kΩ pull-downs on the L298N IN pins, 100 kΩ on MOTION_OK, 5 V → 3.3 V dividers on every HC-SR04 ECHO | Safe state while any board is resetting or unpowered |
 | Phase 3 (**before any autonomous roaming**) | 2× downward cliff sensors (VL53L0X or IR) | Stairs and table edges. Autonomy is **disabled in config** until `cliff_sensors: true`. |
 | Phase 3 | Front bumper microswitches ×2 | Last-resort contact sensing that no software bug can mis-range |
 | Phase 3 | 3 forward range sensors (VL53L1X preferred; the existing HC-SR04 ×3 work with level shifting) | C8 |
@@ -231,6 +333,7 @@ Only what the architecture actually needs, in the order it becomes necessary.
 | Phase 4 | USB microphone. A USB mic **array** (e.g. ReSpeaker class) is preferred. | There is no microphone. An array also gives speech direction for §27. |
 | Phase 4 (option) | USB audio adapter + small amp | Only if PCM streaming to the MAX98357A (§13) proves unreliable |
 | Later (optional) | 2D LiDAR (LD06 class) | Phase 4 mapping only. Not needed before then. |
+| Later (optional, exploratory) | 3× omni wheel + 3× motor holonomic base (§11.6) | HTX Studio–style catch-the-throw mode. Replaces the L298N two-wheel drive; needs Phase 3's floor test passed first. |
 | Optional | TB6612FNG / DRV8871 instead of the L298N | The L298N drops ~2 V and runs hot. It works, so it stays unless it limits speed control. |
 
 ---
@@ -258,15 +361,26 @@ Only what the architecture actually needs, in the order it becomes necessary.
 │  dashboard (HTTP/WS) ──────────────┘ debug commands enter ABOVE the      │
 │                                      validator, never below it           │
 └────────────────────────────────────┬─────────────────────────────────────┘
-                                     │ USB CDC, framed, CRC, seq/ack, heartbeat
-┌────────────────────────────────────▼──────── ESP32-S3  ("body") ──────────┐
+          Bridge RPC (on-board)      │ USB CDC, framed, CRC, seq/ack, heartbeat
+┌──────────────────────────┐         │
+│ UNO Q MCU  (sensor node) │         │
+│ HC-SR04 ×3, cliff, bump, │ MOTION_OK (pulse train, 1 wire)
+│ E-stop sense, INA219,    │─────────┐
+│ OLED face, buzzer        │         │
+└──────────────────────────┘         │
+┌────────────────────────────────────▼──── XIAO ESP32-S3  ("body") ─────────┐
 │  brainLink ─► REFLEX SAFETY (hard: E-stop latch, link timeout, cmd TTL,   │
-│               obstacle/cliff/bumper stop, battery cutoff, speed & accel   │
-│               ceilings) ─► motion ─► motors (ramp, clamp) ─► L298N        │
-│  gestures ─► eye / lid (own hand-safety) / finger / leds / display / audio│
+│               MOTION_OK veto + limited reverse escape, battery cutoff,    │
+│               speed & accel ceilings) ─► motion ─► motors ─► L298N        │
+│  gestures ─► PCA9685 servos: eye / lid (own hand-safety) / finger         │
+│  leds (WS2812B) · audio (MAX98357A)                                       │
 │  telemetry ─► brainLink                                                   │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
+
+The OLED face and buzzer stay on the UNO Q MCU, where they are already wired
+and working. The brain drives them over Bridge. Everything that moves is on the
+XIAO.
 
 **Two safety layers with different jobs.** The **governor** on the brain is
 *social* safety: don't crowd people, slow down near them, stop following. It
@@ -287,11 +401,63 @@ calibration, and the link can only **lower** them.
 | E-stop pressed (hardware) | power removed from the motors + ESP32 sense input | Latched; cleared only by the physical reset **and** an explicit `reset_estop` from the dashboard |
 | LLM / STT / TTS / network down | Brain health monitor | `OfflineFallback` (§14). Motion safety is unaffected. |
 | Camera down | Vision: no frame for 2 s | `vision.online = false`; the world model reports **unknown**, not "nobody"; autonomous approach disabled |
-| Battery low / critical | ESP32 ADC | Low: brain → `RETURNING_HOME`. Critical: body refuses motion. |
+| Battery low / critical | INA219 on the UNO Q MCU | Low: brain → `RETURNING_HOME`. Critical: the MCU stops MOTION_OK pulses, so the body refuses forward motion. |
+| UNO Q MCU hangs or crashes | XIAO: < 2 MOTION_OK edges in 150 ms | Forward motion blocked; reverse escape only; brain reports `SENSORS_LOST` |
+| MOTION_OK wire broken / shorted | same (a steady level is not a pulse train) | same |
+| Obstacle, cliff or bumper | UNO Q MCU → MOTION_OK stops | Forward motion blocked within ~150 ms, with no dependence on Linux |
 
 ---
 
 ## 9. Communication protocol (brain ↔ body)
+
+**Implemented (body side, 17 Sep 2026):** `firmware/DustEBody/` - the XIAO
+ESP32-S3 firmware: `brainLink` (this protocol), `reflex` (the rules in §8.1),
+`motors` (L298N on four pins), `lid`, `leds`. It builds clean under PlatformIO
+for `seeed_xiao_esp32s3`; it has not run on hardware. The Python reference in
+`simbody.py` remains the specification. `tools/verify_project.py` now checks
+that the firmware's safety constants and the brain's `body:` config block have
+not drifted apart.
+
+**Implemented (sensor node, 17 Sep 2026):** `firmware/DustESensorNode/` - the
+UNO Q MCU's own sketch: the HC-SR04 fan, the IR throat sensor, and the
+MOTION_OK pulse train the XIAO's reflex layer treats as its sensor veto. Cliff
+sensors, bumpers, E-stop sense and the INA219 are wired into the sketch behind
+`HW_*` flags and stay false until the parts in docs/COMPANION_BOM.md rows 1,
+4, 8 and 9 are fitted. **Compiled and flashed on real hardware (19 Sep 2026)**
+via `arduino-cli` against a physically connected UNO Q - see
+firmware/DustESensorNode/README.md section 5 for the live `[sensor]` output
+and the one real bug that first compile caught (`Serial.printf()` does not
+exist on this core's `BridgeMonitor<>`, fixed by switching to `print()`
+chains). PlatformIO still has no UNO Q target; `arduino-cli` does.
+
+**Implemented (brain link, 17 Sep 2026):** `brain/dustebrain/body/link.py` -
+`BodyLink`, the real client: every outbound command still passes through the
+same `Validator`, and `SerialTransport` (pyserial) opens the actual USB link
+once a XIAO exists to answer. `brain/tests/test_body_link.py` runs the whole
+stack - encode, the wire, decode, `SimBody`, decode again - with no port and
+no board, via an in-memory `LoopbackPipe`. `python -m dustebrain.apps.body_probe`
+is the bring-up CLI for firmware/DustEBody/README.md section 6.
+
+**Implemented (dashboard, 19 Sep 2026):** `brain/dustebrain/dashboard/` - the
+DRIVE + HW + DEBUG web dashboard this phase's acceptance check names. A
+stdlib-only `http.server` (no new dependency), polled from a small static
+page rather than pushed over a WebSocket - simpler, and at 150 ms poll /
+100 ms hold-to-drive resend it is still well under the command TTL. Every
+command it sends is `src="manual"`, going through the same `BodyLink` and
+Validator as `body_probe.py` - the dashboard can do nothing that CLI could
+not already do. `python -m dustebrain.apps.dashboard --sim` runs it against
+an in-process `SimBody` with no hardware at all, for exactly the same reason
+`LoopbackPipe` exists; `--port COM5` runs it against a real body.
+`brain/tests/test_dashboard.py` drives it over real HTTP against the real
+`SimBody` reference (7 tests) and is what found the `manual_max_pct` gap
+noted in section 9.2.
+
+**Implemented (brain side, 17 Sep 2026):** `brain/dustebrain/body/protocol.py`
+(framing, CRC, reader), `validator.py` (source policy, clamps, rate limits) and
+`simbody.py` — a Python reference implementation of the body's reflex safety.
+The failsafe matrix in §8.1 is tested against it in `brain/tests/test_simbody.py`.
+The firmware is written to match that reference, not the other way round.
+No serial port is opened yet.
 
 **Transport:** USB CDC (ESP32-S3 native USB) through the powered hub,
 `/dev/ttyACM*` on the UNO Q. One JSON object per line with a CRC suffix, so it
@@ -335,12 +501,29 @@ Lines with a bad CRC are dropped and counted; they are never guessed at.
 | `clip` | clip id | Prerecorded WAV from LittleFS |
 | `pcm` | `id`, `n` (chunk index), `last`, base64 16 kHz mono s16le, 40 ms | Streamed TTS into an I²S ring buffer; `pcm_stop` flushes immediately |
 
+**Known gap, found by real testing (19 Sep 2026):** `manual_max_pct` (70) is
+meant to give a human at the dashboard more headroom than autonomous driving
+(`auto_max_pct`, 45) - the firmware comment on `Motors::ceiling_`
+(`firmware/DustEBody/src/motor/motors.h`) says as much. In both actual
+implementations that back this table, though, the effective ceiling starts at
+`auto_max_pct` and can only ever be **lowered**, for every `src` including
+`manual` - there is no message that raises it, so `manual_max_pct` is
+advertised in `hello`/`telemetry.limits` but never actually reachable. This
+is consistent between `simbody.py` and the real C++ (so
+`tools/verify_project.py`'s constant-drift check does not catch it - both
+sides agree on the same, currently-unreachable, number), which is exactly why
+it went unnoticed until `brain/tests/test_dashboard.py` tried to drive the
+dashboard to 70% and only ever got to 45%. Fixing this - some explicit,
+`src="manual"`-gated way to raise the ceiling back up to the `MOTOR_AUTO_MAX_PCT`
+compile-time wall, and only that far - is unclaimed work, not yet a phase
+commitment.
+
 ### 9.3 Body → brain
 
 | `type` | Payload |
 |---|---|
 | `telemetry` (20 Hz) | `ml`,`mr` actual %, `tl`,`tr` target %, `range` `{fl,fc,fr}` mm or `null`, `cliff` `{l,r}` bool or `null`, `bump` `{l,r}`, `throat` mm, `approach` mm, `estop`, `estop_reason`, `inhibit`, `lid`, `audio` `{playing, buffer_ms}`, `battery_mv` (or `null` when not fitted), `link` `{crc_err, seq_gaps}`, `uptime` |
-| `ack` | `seq` of the acknowledged command, `ok`, `err` |
+| `ack` | `ack_seq` (the command being acknowledged), `ok`, `err`, optional `detail` |
 | `event` | `code` (`BUMPER_HIT`, `CLIFF`, `OBSTACLE_STOP`, `LID_BLOCKED`, `ESTOP`, `BROWNOUT_RESET`, `NORMAL_SWITCH_ON`, `REMOTE_CMD` …), `text` |
 | `hello` | `fw`, `v`, ceilings, `hw` inventory (same honesty rules as DustEWeb: `configured` vs `online` vs `not_installed`) |
 
@@ -455,6 +638,31 @@ does not make the robot twitch.
 2. Person-directed approach (bearing servoing + distance bands).
 3. Odometry (encoders + IMU), occupancy grid from the range fan, AprilTag home.
 4. Optional LiDAR + SLAM.
+
+### 11.6 Optional: catch-the-throw mode (HTX Studio–style, exploratory)
+
+[HTX Studio](https://www.core77.com/posts/137907/HTX-Studio-Explores-the-Design-of-Smart-Roving-Trash-Cans)
+built bins that use a camera to predict a thrown object's landing point and
+drive there in time to catch it, on a three-motor omnidirectional base
+([Hackaday](https://hackaday.com/2025/08/06/automated-rubbish-removal-system/),
+[TechEBlog](https://www.techeblog.com/htx-studio-smart-trash-can-auto-aiming-robot/)).
+They publish no schematics or code, so this is not their design — it is a
+sourced parts list (docs/COMPANION_BOM.md §4) for building the same
+*mechanism* on top of what this repo already has: the tracker in §12 already
+produces the positions a trajectory predictor would fit a parabola to.
+
+It needs a **holonomic drive base** (three omni wheels, 120° apart, each on
+its own motor) in place of the L298N two-wheel drive, which can turn or go
+straight but not translate sideways fast enough to get under a falling
+object — the actual trick behind HTX Studio's bins, more than the ML.
+
+This is explicitly **not** a Phase 3 deliverable. It sits on top of a
+Phase 3 that has already passed its floor test: the same reflex safety
+(cliff, bumper, obstacle, E-stop) applies, just to a moving target instead of
+a fixed one, and moving fast enough to catch something in the air pulls
+directly against this project's own priority order (safety and reliability
+before physical comedy). See docs/COMPANION_BOM.md §4 for why it is filed as
+its own exploratory phase instead of folded into Phase 2 or 3.
 
 ---
 
@@ -708,15 +916,26 @@ phase starts until the previous one is boring.
 
 ---
 
-## Open decisions (needed before Phase 2)
+## Decisions
 
-1. **Which ESP32 is the body?** ESP32-S3 (the DUST-E pin map, recommended for
-   native USB and pins) or classic ESP32 (DustEWeb)? Which module (N8R2 /
-   N16R8)?
-2. **What is physically built?** Is the L298N currently wired to the UNO Q
-   (D5–D10) or to an ESP32? Are the lid, eye and finger mechanisms on the
-   mobile chassis? VL53L0X or HC-SR04 for ranging?
-3. **Pin map:** Option A (add PCA9685, recommended) or Option B (§6.2)?
-4. **Personality location:** brain port (recommended) or ESP32-authoritative (§15.2)?
-5. **Cloud LLM:** is a network and API key available at demo venues, or should
+**Made:**
+
+- **Body controller:** Seeed XIAO ESP32-S3.
+- **Split:** the UNO Q does the processing and its header pins carry the
+  sensors; the XIAO drives the actuators (§6.2). Decided 2026-09-16.
+
+**Still open (needed before the Phase 2 firmware is written):**
+
+1. **XIAO variant:** plain XIAO ESP32-S3 or the **Sense** (camera + PDM mic +
+   SD, which uses GPIO 41/42 on the expansion board)?
+2. **Actuators actually fitted:** which servos (eye pan / tilt, lid, finger,
+   hatch) and which models? Is the MAX98357A + speaker on hand? How many
+   WS2812B LEDs?
+3. **Motors and power:** still the L298N? Battery chemistry and voltage (sizes
+   the buck converter, the INA219 shunt and the low-battery thresholds)?
+4. **Sensors on the UNO Q:** is the HC-SR04 ×3 / IR / buzzer / switch / OLED
+   wiring still exactly as in `UselessBox_UnoQ`? Are cliff sensors and bumpers
+   on order?
+5. **Personality location:** brain port (recommended) or ESP32-authoritative (§15.2)?
+6. **Cloud LLM:** is a network and API key available at demo venues, or should
    the local model be the default?
